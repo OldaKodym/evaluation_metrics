@@ -1,2 +1,2 @@
-python codes for calculation of Dice Similarity Score (DSC) and symmetric Hausdorff Distance (HD) for MICCAI 2020 Challenge
+python codes for calculation of Dice Similarity Score (DSC), border Dice Similarity Score (B-DSC) and symmetric 95% Hausdorff Distance (HD95) for MICCAI AutoImplant Challenge
 credits: MedPy http://pydoc.net/MedPy/0.2.2/medpy.metric.binary/

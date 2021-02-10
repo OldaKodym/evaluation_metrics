@@ -1,7 +1,10 @@
 
 '''
-Calculation of Dice Similarity Score (DSC) and Hausdorff Distance (HD)
-between two binary volume
+Calculation of similarity between two binary volumes. Includes:
+- Dice Similarity Score (DSC)
+- Border Dice Similarity Score (BDSC)
+- Hausdorff Distance (HD)
+- 95% Hausdorff Distance (HD95)
 credits: MedPy http://pydoc.net/MedPy/0.2.2/medpy.metric.binary/
 '''
 
@@ -100,6 +103,54 @@ def hd(result, reference, voxelspacing=None, connectivity=1):
     return hd
 
 
+def hd95(result, reference, voxelspacing=None, connectivity=1):
+    """
+    95th percentile of the Hausdorff Distance.
+
+    Computes the 95th percentile of the (symmetric) Hausdorff Distance (HD) between the binary objects in two
+    images. Compared to the Hausdorff Distance, this metric is slightly more stable to small outliers and is
+    commonly used in Biomedical Segmentation challenges.
+
+    Parameters
+    ----------
+    result : array_like
+        Input data containing objects. Can be any type but will be converted
+        into binary: background where 0, object everywhere else.
+    reference : array_like
+        Input data containing objects. Can be any type but will be converted
+        into binary: background where 0, object everywhere else.
+    voxelspacing : float or sequence of floats, optional
+        The voxelspacing in a distance unit i.e. spacing of elements
+        along each dimension. If a sequence, must be of length equal to
+        the input rank; if a single number, this is used for all axes. If
+        not specified, a grid spacing of unity is implied.
+    connectivity : int
+        The neighbourhood/connectivity considered when determining the surface
+        of the binary objects. This value is passed to
+        `scipy.ndimage.morphology.generate_binary_structure` and should usually be :math:`> 1`.
+        Note that the connectivity influences the result in the case of the Hausdorff distance.
+
+    Returns
+    -------
+    hd : float
+        The symmetric Hausdorff Distance between the object(s) in ```result``` and the
+        object(s) in ```reference```. The distance unit is the same as for the spacing of
+        elements along each dimension, which is usually given in mm.
+
+    See also
+    --------
+    :func:`hd`
+
+    Notes
+    -----
+    This is a real metric. The binary images can therefore be supplied in any order.
+    """
+    hd1 = __surface_distances(result, reference, voxelspacing, connectivity)
+    hd2 = __surface_distances(reference, result, voxelspacing, connectivity)
+    hd95 = numpy.percentile(numpy.hstack((hd1, hd2)), 95)
+    return hd95
+
+
 def dc(input1, input2):
 
     """
@@ -148,10 +199,49 @@ def dc(input1, input2):
     return dc
 
 
+def bdc(implant_1, implant_2, defective_skull, voxelspacing=None, distance=10):
 
+    """
+    Border Dice coefficient
 
+    Measures how well a predicted implant fits around border of defective skull by computing the Dice coefficient
+    between predicted and ground-truth implant only for voxels close to the defective skull.
 
+    Parameters
+    ----------
+    implant_1 : array_like
+        Input data containing objects. Can be any type but will be converted
+        into binary: background where 0, object everywhere else.
+    implant_2 : array_like
+        Input data containing objects. Can be any type but will be converted
+        into binary: background where 0, object everywhere else.
+    defective_skull : array_like
+        Input data containing objects. Can be any type but will be converted
+        into binary: background where 0, object everywhere else.
+    voxelspacing : float or sequence of floats, optional
+        The voxelspacing in a distance unit i.e. spacing of elements
+        along each dimension. If a sequence, must be of length equal to
+        the input rank; if a single number, this is used for all axes. If
+        not specified, a grid spacing of unity is implied.
+    distance : integer
+        Distance in milimeters at which voxels are considered to be "border".
 
+    Returns
+    -------
+    dc : float
+        The Dice coefficient between the border of ```implant_1``` and the border
+        of ```implant_2```. It ranges from 0 (no overlap) to 1 (perfect overlap).
+    """
+
+    dt = distance_transform_edt(~(defective_skull > 0), sampling=voxelspacing)
+
+    implant_1_masked = implant_1.copy()
+    implant_2_masked = implant_2.copy()
+
+    implant_1_masked[dt > distance] = 0
+    implant_2_masked[dt > distance] = 0
+
+    return dc(implant_1_masked, implant_2_masked)
 
 
 if __name__ == "__main__":
